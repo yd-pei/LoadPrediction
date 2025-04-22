@@ -71,11 +71,11 @@ class LSTMRegressor(nn.Module):
 input_size = X_tensor.shape[2]  # 即 feature 数量（7）
 model = LSTMRegressor(input_size=input_size).to(device)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=2e-3)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 loss_fn = nn.MSELoss()
 
 # === Step 8: 训练模型 ===
-num_epochs = 1
+num_epochs = 150
 
 loss_history = []
 
