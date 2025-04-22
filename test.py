@@ -10,7 +10,11 @@ model_path = "./checkpoint/lstm15min_checkpoint_epoch150.pth"
 test_csv_path = "./dataset/test_pca_fixed.csv"
 input_window = 15
 target_window = 5
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu") # CPU
+if torch.cuda.is_available():
+    device = torch.device("cuda") # nVidia
+elif torch.mps.is_available():
+    device = torch.device("mps") # Apple silicon
 
 # ==== model ====
 class LSTMRegressor(nn.Module):

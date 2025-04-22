@@ -9,30 +9,35 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import os
 
-# === 配置参数 ===
-csv_path = "./dataset/train_pca.csv"  # ← 替换为你的文件名
-input_window = 60  # 输入历史长度（分钟）
-target_window = 5  # 预测未来多长时间（分钟）
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# === configuration ===
+csv_path = "./dataset/train_pca.csv" 
+input_window = 30  
+target_window = 5 
+device = torch.device("cpu") # CPU
+if torch.cuda.is_available():
+    device = torch.device("cuda") # nVidia
+elif torch.mps.is_available():
+    device = torch.device("mps") # Apple silicon
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 os.makedirs("./lossPic", exist_ok=True)
 
-# === Step 1: 读取数据 ===
+# === read data ===
 df = pd.read_csv(csv_path)
 features = ['T1', 'T2', 'T3', 'T4', 'PC1', 'PC2', 'PC3']
 target_col = 'total_cpu_rate'
 
 X_raw = df[features].values
-y_raw = df[[target_col]].values  # 需要保持二维 shape
+y_raw = df[[target_col]].values  
 
-# === Step 2: 标准化 ===
+# === Normalize ===
 x_scaler = MinMaxScaler()
 y_scaler = MinMaxScaler()
 
 X_scaled = x_scaler.fit_transform(X_raw)
 y_scaled = y_scaler.fit_transform(y_raw)
 
-# === Step 3: 构造输入窗口 + 未来平均值目标 ===
+# === window ===
 def create_sequences(X, y, input_len, target_len):
     X_seq, y_seq = [], []
     for i in range(len(X) - input_len - target_len):
@@ -43,38 +48,38 @@ def create_sequences(X, y, input_len, target_len):
 
 X_seq, y_seq = create_sequences(X_scaled, y_scaled, input_window, target_window)
 
-# === Step 4: 转为 tensor 并放入 GPU ===
+# === put data to GPU device ===
+# only support fp32, do not change to torch.float16 and other width.
 X_tensor = torch.tensor(X_seq, dtype=torch.float32).to(device)
-y_tensor = torch.tensor(y_seq, dtype=torch.float32).unsqueeze(1).to(device)  # 加维度变成 (N, 1)
+y_tensor = torch.tensor(y_seq, dtype=torch.float32).unsqueeze(1).to(device)  
 
-# === Step 5: 创建 DataLoader（可选）===
 dataset = TensorDataset(X_tensor, y_tensor)
 loader = DataLoader(dataset, batch_size=64, shuffle=True)
 
 print(f"Loaded {len(X_tensor)} samples to device: {device}")
 
 
-# === Step 6: 定义 LSTM 模型 ===
+# === construct LSTM model ===
 class LSTMRegressor(nn.Module):
     def __init__(self, input_size, hidden_size=64, num_layers=2):
         super().__init__()
         self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size,
                             num_layers=num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, 1)  # 输出一个标量
+        self.fc = nn.Linear(hidden_size, 1)
 
     def forward(self, x):
-        out, _ = self.lstm(x)  # out: (batch, seq_len, hidden)
-        last_step = out[:, -1, :]  # 取最后一步的输出
+        out, _ = self.lstm(x) 
+        last_step = out[:, -1, :]
         return self.fc(last_step)
 
-# === Step 7: 初始化模型与优化器 ===
-input_size = X_tensor.shape[2]  # 即 feature 数量（7）
+# === optimizer ===
+input_size = X_tensor.shape[2]  
 model = LSTMRegressor(input_size=input_size).to(device)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 loss_fn = nn.MSELoss()
 
-# === Step 8: 训练模型 ===
+# === Training ===
 num_epochs = 250
 
 loss_history = []
@@ -117,5 +122,5 @@ for epoch in range(num_epochs):
             inputw = input_window
             )
         plt.savefig(pic_name)
-        print("✅ Loss 曲线已保存为 'loss_curve.png'")
+        print("Loss curve saved.")
 
