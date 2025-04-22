@@ -11,7 +11,7 @@ import os
 
 # === 配置参数 ===
 csv_path = "./dataset/train_pca.csv"  # ← 替换为你的文件名
-input_window = 15  # 输入历史长度（分钟）
+input_window = 60  # 输入历史长度（分钟）
 target_window = 5  # 预测未来多长时间（分钟）
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
@@ -71,11 +71,11 @@ class LSTMRegressor(nn.Module):
 input_size = X_tensor.shape[2]  # 即 feature 数量（7）
 model = LSTMRegressor(input_size=input_size).to(device)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
 loss_fn = nn.MSELoss()
 
 # === Step 8: 训练模型 ===
-num_epochs = 150
+num_epochs = 250
 
 loss_history = []
 
